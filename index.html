@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="画像をPS1風にピクセル化・減色し、PNGで保存するツール">
+  <title>ローポリる</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <header class="masthead">
+    <span class="logo" aria-hidden="true"></span>
+    <h1>ローポリる</h1>
+  </header>
+  <main>
+    <section class="workspace" aria-labelledby="preview-title">
+      <header class="panel-head"><h2 id="preview-title">比較プレビュー</h2><span id="source-size">画像未選択</span></header>
+      <div class="stage" id="stage">
+        <div class="placeholder" id="placeholder">
+          <span class="pixel-mark" aria-hidden="true">▦</span>
+          <p>画像をここにドロップ</p>
+          <button type="button" data-open>画像を選択</button>
+          <small>PNG / JPEG / WebP</small>
+        </div>
+        <div class="comparison" id="comparison" hidden>
+          <div class="image-stack" id="image-stack">
+            <img id="original" alt="">
+            <div class="processed"><canvas id="result"></canvas></div>
+          </div>
+          <span class="tag before">元画像</span><span class="tag after">変換後</span>
+          <div class="divider" aria-hidden="true"><span>‹ ›</span></div>
+          <input id="split" type="range" min="0" max="100" value="50" aria-label="元画像と変換後の比較位置">
+        </div>
+      </div>
+      <footer class="panel-foot">
+        <button type="button" class="quiet" data-open>画像を読み込む</button>
+        <span id="filename"></span>
+      </footer>
+      <p id="load-error" class="error" role="alert" hidden></p>
+      <input id="file" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" hidden>
+    </section>
+    <aside aria-label="変換と保存">
+      <section class="controls">
+        <h2>変換設定</h2>
+        <fieldset>
+          <legend>長辺プリセット (px)</legend>
+          <div class="options" id="presets">
+            <button type="button" data-size="32" aria-pressed="false">32</button>
+            <button type="button" data-size="64" aria-pressed="false">64</button>
+            <button type="button" data-size="128" aria-pressed="true">128</button>
+            <button type="button" data-size="256" aria-pressed="false">256</button>
+          </div>
+        </fieldset>
+        <div class="range-control">
+          <label for="long-edge">長辺</label><output for="long-edge" id="long-edge-value">128 px</output>
+          <input id="long-edge" type="range" min="32" max="256" step="1" value="128">
+        </div>
+        <div class="dimensions">
+          <label>幅 (px)<input type="number" id="width" min="1" max="2048" step="1" inputmode="numeric" disabled></label>
+          <label>高さ (px)<input type="number" id="height" min="1" max="2048" step="1" inputmode="numeric" disabled></label>
+        </div>
+        <label class="toggle"><input id="lock" type="checkbox" checked>縦横比を固定</label>
+        <div class="rule"></div>
+        <label class="select-label">縮小方式<select id="resize-method">
+          <option value="average">平均化</option><option value="nearest" selected>最近傍</option>
+        </select></label>
+        <fieldset>
+          <legend>色数プリセット</legend>
+          <div class="options" id="color-presets">
+            <button type="button" data-colors="0" aria-pressed="false">制限なし</button>
+            <button type="button" data-colors="8" aria-pressed="false">8色</button>
+            <button type="button" data-colors="16" aria-pressed="false">16色</button>
+            <button type="button" data-colors="32" aria-pressed="true">32色</button>
+            <button type="button" data-colors="64" aria-pressed="false">64色</button>
+          </div>
+        </fieldset>
+        <div class="range-control">
+          <label for="colors">色数</label><output for="colors" id="color-count">32色</output>
+          <input id="colors" type="range" min="8" max="64" step="1" value="32">
+        </div>
+        <div class="range-control">
+          <label for="dither">ディザリング</label><output for="dither" id="dither-value">0%</output>
+          <input id="dither" type="range" min="0" max="100" step="1" value="0">
+        </div>
+        <p id="convert-error" class="error" role="alert" hidden></p>
+      </section>
+      <section class="controls color-controls" aria-labelledby="color-title">
+        <h2 id="color-title">色調整</h2>
+        <div class="range-control">
+          <label for="saturation">彩度</label><output for="saturation">0</output>
+          <input id="saturation" type="range" min="-100" max="100" step="1" value="0">
+        </div>
+        <div class="range-control">
+          <label for="contrast">コントラスト</label><output for="contrast">0</output>
+          <input id="contrast" type="range" min="-100" max="100" step="0.5" value="0">
+        </div>
+        <div class="range-control">
+          <label for="brightness">明るさ</label><output for="brightness">0</output>
+          <input id="brightness" type="range" min="-100" max="100" step="1" value="0">
+        </div>
+        <div class="range-control">
+          <label for="temperature">色温度</label><output for="temperature">0</output>
+          <input id="temperature" type="range" min="-100" max="100" step="1" value="0">
+        </div>
+        <div class="range-control">
+          <label for="hue">色相 (Hue)</label><output for="hue">0°</output>
+          <input id="hue" type="range" min="-180" max="180" step="1" value="0">
+        </div>
+        <div class="range-control">
+          <label for="gamma">ガンマ（中間調）</label><output for="gamma">1.00</output>
+          <input id="gamma" type="range" min="0.5" max="2" step="0.01" value="1">
+        </div>
+        <div class="range-control">
+          <label for="tint-red">赤 (Tint Red)</label><output for="tint-red">0</output>
+          <input id="tint-red" type="range" min="-100" max="100" step="0.5" value="0">
+        </div>
+        <div class="range-control">
+          <label for="tint-green">緑 (Tint Green)</label><output for="tint-green">0</output>
+          <input id="tint-green" type="range" min="-100" max="100" step="0.5" value="0">
+        </div>
+        <div class="range-control">
+          <label for="tint-blue">青 (Tint Blue)</label><output for="tint-blue">0</output>
+          <input id="tint-blue" type="range" min="-100" max="100" step="0.5" value="0">
+        </div>
+        <button type="button" id="reset-colors">色調整をリセット</button>
+      </section>
+      <section class="controls export">
+        <h2>PNG保存</h2>
+        <fieldset>
+          <legend>拡大倍率</legend>
+          <div class="options" id="scales">
+            <button type="button" data-scale="1" aria-pressed="true">等倍</button>
+            <button type="button" data-scale="2" aria-pressed="false">2倍</button>
+            <button type="button" data-scale="4" aria-pressed="false">4倍</button>
+            <button type="button" data-scale="8" aria-pressed="false">8倍</button>
+          </div>
+        </fieldset>
+        <label class="select-label">倍率 (0.01以上)
+          <input type="number" id="scale" min="0.01" step="0.01" inputmode="decimal" value="1.00" required>
+        </label>
+        <p class="output">出力サイズ <output id="output-size">—</output></p>
+        <button type="button" id="download" disabled>PNGを保存</button>
+        <p id="save-error" class="error" role="alert" hidden></p>
+      </section>
+    </aside>
+  </main>
+</body>
+</html>
